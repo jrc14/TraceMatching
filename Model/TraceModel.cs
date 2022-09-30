@@ -13,7 +13,10 @@ namespace TraceMatching.Model
     internal class TraceModel
     {
         /// <summary>
-        /// The cuurent hypothesis; the ith element of this contains the trace number that is hypothesised to match target #i.
+        /// The current hypothesis; the ith element of this contains the trace number that is hypothesised to match target #i.  Note that it may
+        /// be a partial solution - the parameter 'toMatch' of the Solve method keeps track of which elements of the array are actually correctly
+        /// filled in (e.g. if toMatch==4, then elements [0-3] contain valid trace-to-target mappings, and the other array elements contain
+        /// values that aren't meaningful).
         /// </summary>
         internal static int[] HypothesisedMatches = null;
 
@@ -44,7 +47,7 @@ namespace TraceMatching.Model
 
         /// <summary>
         /// The lowest aggregate distance (total trace-to-target distance) that the solver has found.  It will be set
-        /// to int.MaxValue before as long as no solution has been found yet.
+        /// to int.MaxValue as long as no solution has been found yet.
         /// </summary>
         internal static int BestTotalDistance;
 
@@ -136,7 +139,7 @@ namespace TraceMatching.Model
                 }
             }
 
-            // This is where we actually kick off the recurrsive function call that will look for the best match.
+            // This is where we actually kick off the recursive function call that will look for the best match.
             SolveSteps = 0;
             BestTotalDistance = int.MaxValue;
             Solve(0,0);
@@ -149,10 +152,10 @@ namespace TraceMatching.Model
             }
 
             // The solver puts the solution into BestSolutionFound, and the corresponding total trace-to-target distance
-            // into BestTotalDistance, and the number of steps taken into SolveSteps
+            // into BestTotalDistance, and the number of steps taken into SolveSteps - we build a string describing it ...
             string resultString = SolutionToString(BestSolutionFound, BestTotalDistance,SolveSteps);
 
-            // 
+            // ... and then we invoke the reporter callback, to tell the ui about the solution
             reporter(BestSolutionFound, resultString);
 
         }
@@ -169,23 +172,28 @@ namespace TraceMatching.Model
             if (totalDistance > BestTotalDistance)
             {
                 // We already found a better solution that this one - we can abandon this branch of the search because it can't
-                // produce a better answer than the one we already found.
+                // produce a better answer than the one we already found before.
                 return;
             }
 
-            // If we've found a match for all the targets, this is a solution that we should keep, until/unless we find a better one
+            // If we've found a match for all the targets, this is a solution that we should keep, until/unless we find a better one;
+            // we copy it into the BestSolutionFound array, and update BestTotalDistance to reflect this new solution's total
+            // trace-to-target distance.
             if (toMatch== NUM_TARGETS)
             {
                 BestTotalDistance = totalDistance; // any solutions worse that this one will be abandoned part way through
                 for (int i = 0; i < NUM_TARGETS; i++)
                     BestSolutionFound[i] = HypothesisedMatches[i];
 
+                // log the solution to the debug file
                 LogSolution(totalDistance, SolveSteps);
+
+                // now return; this branch of the search is finished.
                 return;
             }
 
             // First, find the (not yet matched) trace that's closest to target #toMatch
-            // (because we'll begin the search by trying matching that)
+            // (because we'll begin the search by trying matching that one)
             int bestDistance = Int32.MaxValue;
             int bestTrace = -1;
             for (int j = 0; j < NUM_TRACES; j++)
@@ -199,9 +207,12 @@ namespace TraceMatching.Model
                     bestTrace = j;
                 }
             }
-            // Now search for solutions that start by matching target #toMatch with trace #bestTrace (the one having the lowest distance)
+            // We search for solutions that start by matching target #toMatch with trace #bestTrace (the one having the lowest distance)
+            // (note the edge-case where there is no possible trace, because they've all been hypothesised already, yet we have some
+            // targets left over - i.e. the algorithm was supplied with too few traces; in that case, the solver will fill in -1
+            // for this target's match, and carry on to the next target)
             HypothesisedMatches[toMatch] = bestTrace;
-            Solve(toMatch + 1, totalDistance + bestDistance); // having matched trace #bestTrace with target #toMatch. we now try to extend the current hypothesis
+            Solve(toMatch + 1, totalDistance + bestDistance); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
 
             // Next we search for solutions that start by matching target #toMatch with all the other traces except the one with the lowest distance
             for (int j=0; j < NUM_TRACES; j++)
@@ -209,23 +220,23 @@ namespace TraceMatching.Model
                 if (TraceAlreadyHypothesised(j, toMatch)) // ignore traces that have already been matched in the current hypothesis
                     continue;
 
-                if (j == bestTrace) // because we generated solutions for the best trace already
+                if (j == bestTrace) // because we generated solutions for the best trace already, we skip this one now
                     continue;
 
+                // Now search for solutions that start by matching target #toMatch with trace #j
                 HypothesisedMatches[toMatch] = j; 
-
-                Solve(toMatch + 1, totalDistance + Distance[toMatch,j]); // having matched trace #j with target #toMatch. we now try to extend the current hypothesis
+                Solve(toMatch + 1, totalDistance + Distance[toMatch,j]); // having matched trace #j with target #toMatch, we now try to extend the current hypothesis
             }
         }
 
         /// <summary>
-        /// Looks at the traces that have been matched so far (the parameter tells us how far into the search we have got - i.e
+        /// The method looks at the traces that have been matched so far (the parameter tells us how far into the search we have got - i.e
         /// how many targets we have matched so far).  The method checks whether trace #trace has already been matched to some
         /// target, in the current hypothesis.
         /// </summary>
         /// <param name="trace">the index number of the trace to be checked</param>
-        /// <param name="soFar">true if trace has already been matched in the currently active hypothesis</param>
-        /// <returns></returns>
+        /// <param name="soFar">how many targets we have matched so far</param>
+        /// <returns>true if trace has already been matched in the currently active hypothesis</returns>
         private static bool TraceAlreadyHypothesised(int trace, int soFar)
         {
             for(int i=0; i<soFar;i++)
@@ -236,7 +247,16 @@ namespace TraceMatching.Model
             return false;
         }
 
+        /// <summary>
+        /// The file we write the debug log to
+        /// </summary>
         private static StreamWriter Writer = null;
+
+        /// <summary>
+        /// Write the current solution to the log file
+        /// </summary>
+        /// <param name="totalDistance"></param>
+        /// <param name="stepCount"></param>
         private static void LogSolution(int totalDistance, int stepCount)
         {
             if(Writer==null)
@@ -252,6 +272,13 @@ namespace TraceMatching.Model
             Writer.Write(resultString);
         }
 
+        /// <summary>
+        /// Turn a solution into a user-readble string
+        /// </summary>
+        /// <param name="s">the solution</param>
+        /// <param name="d">the solution's total trace-to-target distance</param>
+        /// <param name="c">the number of steps taken</param>
+        /// <returns></returns>
         private static string SolutionToString(int[] s, int d, int c)
         {
             string resultString = "";
