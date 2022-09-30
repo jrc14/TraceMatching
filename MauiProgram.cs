@@ -1,4 +1,6 @@
-﻿namespace TraceMatching;
+﻿using SkiaSharp.Views.Maui.Controls.Hosting;
+
+namespace TraceMatching;
 
 public static class MauiProgram
 {
@@ -7,7 +9,8 @@ public static class MauiProgram
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
-			.ConfigureFonts(fonts =>
+            .UseSkiaSharp()
+            .ConfigureFonts(fonts =>
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");

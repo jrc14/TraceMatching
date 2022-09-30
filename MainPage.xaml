@@ -3,17 +3,53 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="TraceMatching.MainPage">
 
-    <ScrollView>
         <VerticalStackLayout
+            BackgroundColor="LightGrey"
             Spacing="25"
-            Padding="30,0"
+            Padding="30,30"
             VerticalOptions="Center">
 
+            <HorizontalStackLayout WidthRequest="500" HeightRequest="300" >
+
+                <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
+                    <Label WidthRequest="100" HeightRequest="20" Text="TARGETS" TextColor="Blue" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                    <ScrollView WidthRequest="100" HeightRequest="250">
+                        <VerticalStackLayout
+                                WidthRequest="100"
+                                HeightRequest="1000"
+                                x:Name="targetButtons">
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+
+
+                <AbsoluteLayout BackgroundColor="Yellow"
+                        HeightRequest="300"
+                        WidthRequest="300"
+                        x:Name="lyCanvasView">
+                </AbsoluteLayout>
+
+                <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
+                    <Label WidthRequest="100" HeightRequest="20" Text="TRACES" TextColor="OrangeRed" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                    <ScrollView WidthRequest="100" HeightRequest="250">
+                        <VerticalStackLayout
+                                WidthRequest="100"
+                                HeightRequest="1000"
+                                x:Name="traceButtons">
+                        </VerticalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
 
             <Button
-                Text="Click me"
+                Text="Click to solve"
                 Clicked="OnSolveClicked"
                 HorizontalOptions="Center" />
+            <Button
+                Text="Click to clear"
+                Clicked="OnClearClicked"
+                HorizontalOptions="Center" />
+                
             <Label
                 x:Name="lblResult"
                 Text="no solution found yet"
@@ -22,6 +58,5 @@
 
 
         </VerticalStackLayout>
-    </ScrollView>
 
 </ContentPage>
