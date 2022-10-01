@@ -24,7 +24,7 @@
                 </ScrollView>
             </VerticalStackLayout>
 
-            <AbsoluteLayout BackgroundColor="Yellow"
+            <AbsoluteLayout BackgroundColor="DarkGray"
                     HeightRequest="300"
                     WidthRequest="300"
                     x:Name="lyCanvasView">
@@ -44,10 +44,12 @@
         </HorizontalStackLayout>
 
         <Button
+            x:Name="btnSolve"
             Text="Click to solve"
             Clicked="OnSolveClicked"
             HorizontalOptions="Center" />
         <Button
+            x:Name="btnClear"
             Text="Click to clear"
             Clicked="OnClearClicked"
             HorizontalOptions="Center" />

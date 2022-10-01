@@ -30,19 +30,33 @@ public partial class MainPage : ContentPage
     private void OnSolveClicked(object sender, EventArgs e)
     {
         this.lblResult.Text = "no solution found yet";
-        var targets = new List<Tuple<int,int >> ();
-        foreach(Button b in this.targetButtons.Children)
-        {
-            targets.Add(b.CommandParameter as Tuple<int, int>);
-        }
+        this.lyCanvasView.Opacity = 0.5;
+        this.btnClear.Opacity = 0.5;
+        this.btnSolve.Opacity = 0.5;
+        this.traceButtons.Opacity = 0.5;
+        this.targetButtons.Opacity = 0.5;
+        Dispatcher.Dispatch(async () => {
+            await Task.Delay(100); // just to give the UI some time to update
+            var targets = new List<Tuple<int, int>>();
+            foreach (Button b in this.targetButtons.Children)
+            {
+                targets.Add(b.CommandParameter as Tuple<int, int>);
+            }
 
-        var traces = new List<Tuple<int, int>>();
-        foreach (Button b in this.traceButtons.Children)
-        {
-            traces.Add(b.CommandParameter as Tuple<int, int>);
-        }
+            var traces = new List<Tuple<int, int>>();
+            foreach (Button b in this.traceButtons.Children)
+            {
+                traces.Add(b.CommandParameter as Tuple<int, int>);
+            }
 
-        Model.TraceModel.Solve(targets, traces, DisplaySolution);
+            Model.TraceModel.Solve(targets, traces, DisplaySolution);
+            this.lyCanvasView.Opacity = 1.0;
+            this.btnClear.Opacity = 1.0;
+            this.btnSolve.Opacity = 1.0;
+            this.traceButtons.Opacity = 1.0;
+            this.targetButtons.Opacity = 1.0;
+        });
+
     }
 
     List<Tuple<int, int>> traceMatches = null;

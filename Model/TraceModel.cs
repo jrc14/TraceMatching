@@ -32,7 +32,7 @@ namespace TraceMatching.Model
         internal static Tuple<int, int>[] TargetCoordinates=null;
 
         /// <summary>
-        /// Tuples of X and Y values, being the coodinates of the targets
+        /// Tuples of X and Y values, being the coodinates of the traces
         /// </summary>
         internal static Tuple<int, int>[] TraceCoordinates = null;
 
@@ -54,7 +54,7 @@ namespace TraceMatching.Model
 
         /// <summary>
         /// Counts how many times the Solve(int toMatch, int totalDistance) function has been recurively called so far on the way
-        /// to finding a solution.  The algorithm doesn't do anything with this infomation, it's just for information (though
+        /// to finding a solution.  The algorithm doesn't do anything with this information, it's just for information (though
         /// if you wanted to, you could use it to implement 'give up after X steps' logic).
         /// </summary>
         internal static int SolveSteps = 0;
@@ -317,7 +317,7 @@ namespace TraceMatching.Model
             // The algorithm works by examining targets in order, starting with target #0 and then working through higher numbered targets.
             // That means that if it has to choose to leave a target unmatched, it's always going to leave the highest-numbered targets unmatched
             // while matching all the lower numbered ones.  It won't consider solutions that leave one or more of the lower-numbered
-            // targets unmatched, even if those would be better in terms of total distance,
+            // targets unmatched, even if those would be better in terms of total distance.
             if (aTargetIsUnmatched)
                 resultString += " *** WARNING: SOLUTION IS NOT OPTIMAL ***";
 
