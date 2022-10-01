@@ -1,10 +1,6 @@
 ﻿
 using Microsoft.Maui.Storage;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -140,11 +136,15 @@ namespace TraceMatching.Model
             }
 
             // This is where we actually kick off the recursive function call that will look for the best match.
+            // First, initialise the hypothesis to 'nothing is matched'
+            // Set the step counter back to zero
             SolveSteps = 0;
+            // Start with 'best total trace-to-target distance' to 'none found yet'
             BestTotalDistance = int.MaxValue;
+            // Call the recursive solver algorithm
             Solve(0,0);
 
-            // The logging functionaility opens a file; we close it here.
+            // The logging functionality opens a file; we close it here.
             if (Writer != null)
             {
                 Writer.Close();
@@ -208,11 +208,13 @@ namespace TraceMatching.Model
                 }
             }
             // We search for solutions that start by matching target #toMatch with trace #bestTrace (the one having the lowest distance)
-            // (note the edge-case where there is no possible trace, because they've all been hypothesised already, yet we have some
-            // targets left over - i.e. the algorithm was supplied with too few traces; in that case, the solver will fill in -1
-            // for this target's match, and carry on to the next target)
+            // Note that there is an edge-case where there is no possible trace, because they've all been hypothesised already, yet we have some
+            // targets left over (i.e. the algorithm was supplied with too few traces).
+            // In that case we'll report int.MaxValue as the best distance, as a hint that the algorithm can't give an optimal answer,
+            // because of the way it works (it works through the targets starting with the first and matching them one after the other;
+            // that means that if it runs out of traces it will not experiment with un-matching one of the lower numbered targets)
             HypothesisedMatches[toMatch] = bestTrace;
-            Solve(toMatch + 1, totalDistance + bestDistance); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
+            Solve(toMatch + 1, bestTrace == -1 ? int.MaxValue : totalDistance + bestDistance); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
 
             // Next we search for solutions that start by matching target #toMatch with all the other traces except the one with the lowest distance
             for (int j=0; j < NUM_TRACES; j++)
@@ -281,6 +283,7 @@ namespace TraceMatching.Model
         /// <returns></returns>
         private static string SolutionToString(int[] s, int d, int c)
         {
+            bool aTargetIsUnmatched = false;
             string resultString = "";
             for (int i = 0; i < NUM_TARGETS; i++)
             {
@@ -288,7 +291,10 @@ namespace TraceMatching.Model
                     resultString += ", ";
 
                 if (s[i] == -1)
+                {
                     resultString += "[UNMATCHED " + i.ToString() + "]";
+                    aTargetIsUnmatched = true;
+                }
                 else
                     resultString += "[" + s[i].ToString() + "-" + i.ToString() + "]";
             }
@@ -308,6 +314,13 @@ namespace TraceMatching.Model
                 resultString += "  (TRACES NOT MATCHED: " + unmatchedTraces + ")";
 
             resultString += " after " + c.ToString() + " steps";
+
+            // Thw algorithm works by workiong targets in order, starting with target #0 and then working through higher numbered targets.
+            // That means that if it has to choose to leave a target unmatched, it's always going to leave the highest-numbered targets unmatched
+            // while matching all the lower numbered ones.  It won't consider solutions that leave one or more of the lower-numbered
+            // targets unmatched, even if those would be better in terms of total distance,
+            if (aTargetIsUnmatched)
+                resultString += " *** WARNING: SOLUTION IS NOT OPTIMAL ***";
 
             return resultString;
         }

@@ -3,60 +3,58 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="TraceMatching.MainPage">
 
-        <VerticalStackLayout
+    <VerticalStackLayout
             BackgroundColor="LightGrey"
-            Spacing="25"
+            Spacing="0"
             Padding="30,30"
             VerticalOptions="Center">
+        <Label WidthRequest="500" HeightRequest="20" Text="Tap below to create targets and traces" FontSize="15" TextColor="White" Background="DarkGray" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+        <Label WidthRequest="500" HeightRequest="20" Text="(tap/left click = target; right click/long tap = trace)" FontSize="15" TextColor="White" Background="DarkGray" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+        <HorizontalStackLayout WidthRequest="500" HeightRequest="300" >
 
-            <HorizontalStackLayout WidthRequest="500" HeightRequest="300" >
-
-                <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
-                    <Label WidthRequest="100" HeightRequest="20" Text="TARGETS" TextColor="Blue" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
-                    <ScrollView WidthRequest="100" HeightRequest="250">
-                        <VerticalStackLayout
+            <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
+                <Label WidthRequest="100" HeightRequest="20" Text="TARGETS" FontSize="15" TextColor="Blue" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                <Label WidthRequest="100" HeightRequest="20" Text="click button to delete" FontSize="10" TextColor="Blue" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                <ScrollView WidthRequest="100" HeightRequest="260">
+                    <VerticalStackLayout
                                 WidthRequest="100"
                                 HeightRequest="1000"
                                 x:Name="targetButtons">
-                        </VerticalStackLayout>
-                    </ScrollView>
-                </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </VerticalStackLayout>
 
+            <AbsoluteLayout BackgroundColor="Yellow"
+                    HeightRequest="300"
+                    WidthRequest="300"
+                    x:Name="lyCanvasView">
+            </AbsoluteLayout>
 
-                <AbsoluteLayout BackgroundColor="Yellow"
-                        HeightRequest="300"
-                        WidthRequest="300"
-                        x:Name="lyCanvasView">
-                </AbsoluteLayout>
-
-                <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
-                    <Label WidthRequest="100" HeightRequest="20" Text="TRACES" TextColor="OrangeRed" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
-                    <ScrollView WidthRequest="100" HeightRequest="250">
-                        <VerticalStackLayout
+            <VerticalStackLayout WidthRequest="100" HeightRequest="300" BackgroundColor="Gray">
+                <Label WidthRequest="100" HeightRequest="20" Text="TRACES" FontSize="15" TextColor="OrangeRed" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                <Label WidthRequest="100" HeightRequest="20" Text="click button to delete" FontSize="10" TextColor="OrangeRed" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
+                <ScrollView WidthRequest="100" HeightRequest="260">
+                    <VerticalStackLayout
                                 WidthRequest="100"
                                 HeightRequest="1000"
                                 x:Name="traceButtons">
-                        </VerticalStackLayout>
-                    </ScrollView>
-                </VerticalStackLayout>
-            </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </VerticalStackLayout>
+        </HorizontalStackLayout>
 
-            <Button
-                Text="Click to solve"
-                Clicked="OnSolveClicked"
-                HorizontalOptions="Center" />
-            <Button
-                Text="Click to clear"
-                Clicked="OnClearClicked"
-                HorizontalOptions="Center" />
-                
-            <Label
-                x:Name="lblResult"
-                Text="no solution found yet"
-                HorizontalOptions="Center"/>
+        <Button
+            Text="Click to solve"
+            Clicked="OnSolveClicked"
+            HorizontalOptions="Center" />
+        <Button
+            Text="Click to clear"
+            Clicked="OnClearClicked"
+            HorizontalOptions="Center" />
 
-
-
-        </VerticalStackLayout>
-
+        <Label
+            x:Name="lblResult"
+            Text="no solution found yet"
+            HorizontalOptions="Center"/>
+    </VerticalStackLayout>
 </ContentPage>

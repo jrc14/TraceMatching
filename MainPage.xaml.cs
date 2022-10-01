@@ -29,6 +29,7 @@ public partial class MainPage : ContentPage
 
     private void OnSolveClicked(object sender, EventArgs e)
     {
+        this.lblResult.Text = "no solution found yet";
         var targets = new List<Tuple<int,int >> ();
         foreach(Button b in this.targetButtons.Children)
         {
@@ -63,6 +64,7 @@ public partial class MainPage : ContentPage
 
     private void OnClearClicked(object sender, EventArgs e)
     {
+        this.lblResult.Text = "no solution found yet";
         this.traceButtons.Children.Clear();
         this.targetButtons.Children.Clear();
         if (this.traceMatches != null)
@@ -73,54 +75,166 @@ public partial class MainPage : ContentPage
         (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
     }
 
+    private void SkiaCanvasTap(int x, int y, bool isRightOrHold)
+    {
+        Button btn = new Button()
+        {
+            WidthRequest = 100,
+            HeightRequest = 40,
+            TextColor = Colors.White,
+            CommandParameter = new Tuple<int, int>(x, y),
+            Text = "(" + x.ToString() + ", " + y.ToString() + ")",
+            FontSize = 10
+        };
+        btn.Clicked += (object sender, EventArgs e) =>
+        {
+            this.Dispatcher.Dispatch(() =>
+            {
+                if (this.traceMatches != null)
+                {
+                    this.traceMatches.Clear();
+                    this.traceMatches = null;
+                }
+                ((sender as Button).Parent as VerticalStackLayout).Children.Remove((sender as Button));
+                (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+            });
+        };
+
+        if (this.traceMatches != null)
+        {
+            this.traceMatches.Clear();
+            this.traceMatches = null;
+        }
+
+        if (isRightOrHold)
+        {
+            btn.BackgroundColor = Colors.OrangeRed;
+            this.traceButtons.Add(btn);
+            (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+        }
+        else
+        {
+            btn.BackgroundColor = Colors.Blue;
+            this.targetButtons.Add(btn);
+            (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+        }
+    }
+
+    private static int MOVE_THRESHOLD = 5;
+
+    private double priorX = -1;
+    private double priorY = -1;
+    private double initialX = -1;
+    private double initialY = -1;
+    private double initialMilliseconds = -1;
+    private double priorMilliseconds = -1;
+
     private void SkiaCanvasView_Touch(object sender, SKTouchEventArgs args)
     {
-        if (args.ActionType == SKTouchAction.Pressed)
+        try
+
         {
-            int x = (int)args.Location.X;
-            int y = (int)args.Location.Y;
+            args.Handled = true; // Let the OS know that we want to receive more touch events, and that we don't want to pass the event to any other element
 
-            Button btn = new Button()
+            double x = args.Location.X;
+            double y = args.Location.Y;
+
+            if (args.ActionType == SKTouchAction.Pressed)
             {
-                WidthRequest=100,
-                HeightRequest=40,
-                TextColor=Colors.White,
-                CommandParameter=new Tuple<int,int>(x,y),
-                Text="("+x.ToString()+", "+y.ToString()+")",
-                FontSize=10
-            };
-            btn.Clicked += (object sender, EventArgs e) =>
-            {
-                this.Dispatcher.Dispatch(() =>
+                this.initialX = x;
+                this.initialY = y;
+                this.priorX = x;
+                this.priorY = y;
+                this.initialMilliseconds = DateTime.Now.Subtract(DateTime.MinValue).TotalMilliseconds;
+                this.priorMilliseconds = this.initialMilliseconds;
+
+                // raise 'pointer pressed' here
+
+                this.Dispatcher.Dispatch(async () =>
                 {
-                    if (this.traceMatches != null)
+                    double startedAtMilliseconds = this.initialMilliseconds;
+                    double startedAtX = x;
+                    double startedAtY = y;
+                    await Task.Delay(500);
+                    if (this.initialMilliseconds != -1)
                     {
-                        this.traceMatches.Clear();
-                        this.traceMatches = null;
+                        if (this.initialMilliseconds == startedAtMilliseconds)
+                        {
+                            if (Math.Abs(initialX - startedAtX) < MOVE_THRESHOLD && Math.Abs(initialY - startedAtY) < MOVE_THRESHOLD)
+                            {
+                                // raise 'holding' here
+                                SkiaCanvasTap((int)x, (int)y, true);
+                            }
+                        }
                     }
-                    ((sender as Button).Parent as VerticalStackLayout).Children.Remove((sender as Button));
-                    (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
                 });
-            };
+            }
+            else if (args.ActionType == SKTouchAction.Released && this.initialMilliseconds != -1)
+            {
+                double deltaX = x - this.priorX;
+                double deltaY = y - this.priorY;
+                double totalX = x - this.initialX;
+                double totalY = y - this.initialY;
 
-            if (this.traceMatches != null)
-            {
-                this.traceMatches.Clear();
-                this.traceMatches = null;
-            }
+                double millisecondsNow = DateTime.Now.Subtract(DateTime.MinValue).TotalMilliseconds;
 
-            if (args.MouseButton == SKMouseButton.Right)
-            {
-                btn.BackgroundColor = Colors.OrangeRed;
-                this.traceButtons.Add(btn);
-                (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+                double totalMilliseconds = millisecondsNow - this.initialMilliseconds;
+
+                this.initialMilliseconds = -1;
+
+                if (Math.Abs(totalX) > MOVE_THRESHOLD || Math.Abs(totalY) > MOVE_THRESHOLD)
+                {
+                    // raise 'pan completed' here
+                }
+                else
+                {
+                    // raise 'cancel move' here
+                    if (totalMilliseconds > 500)
+                    {
+                        // raise 'finished holding' here
+                    }
+                    else
+                    {
+                        if (args.MouseButton == SKMouseButton.Right)
+                        {
+                            // raise 'right clicked' here
+                            SkiaCanvasTap((int)x, (int)y, true);
+                        }
+                        else
+                        {
+                            // raise 'left clicked' here
+                            SkiaCanvasTap((int)x, (int)y, false);
+                        }
+                    }
+                }
+
+                // raised 'pointer released' here
             }
-            else
+            else if (args.ActionType == SKTouchAction.Moved && args.InContact && this.initialMilliseconds != -1)
             {
-                btn.BackgroundColor = Colors.Blue;
-                this.targetButtons.Add(btn);
-                (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+                double milliseconds = DateTime.Now.Subtract(DateTime.MinValue).TotalMilliseconds;
+                double deltaX = x - this.priorX;
+                double deltaY = y - this.priorY;
+                double deltaMilliseconds = milliseconds - this.priorMilliseconds;
+                double totalX = x - this.initialX;
+                double totalY = y - this.initialY;
+                double totalMilliseconds = milliseconds - this.initialMilliseconds;
+                this.priorX = x;
+                this.priorY = y;
+                this.priorMilliseconds = milliseconds;
+
+                // raise 'panning' here
             }
+            else if (args.ActionType == SKTouchAction.Cancelled)
+            {
+                this.initialMilliseconds = -1;
+
+                // raise 'pan cancelled' here
+            }
+        }
+        catch (Exception ex)
+        {
+
         }
     }
 
