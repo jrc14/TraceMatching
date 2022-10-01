@@ -136,7 +136,6 @@ namespace TraceMatching.Model
             }
 
             // This is where we actually kick off the recursive function call that will look for the best match.
-            // First, initialise the hypothesis to 'nothing is matched'
             // Set the step counter back to zero
             SolveSteps = 0;
             // Start with 'best total trace-to-target distance' to 'none found yet'
@@ -315,7 +314,7 @@ namespace TraceMatching.Model
 
             resultString += " after " + c.ToString() + " steps";
 
-            // Thw algorithm works by workiong targets in order, starting with target #0 and then working through higher numbered targets.
+            // The algorithm works by examining targets in order, starting with target #0 and then working through higher numbered targets.
             // That means that if it has to choose to leave a target unmatched, it's always going to leave the highest-numbered targets unmatched
             // while matching all the lower numbered ones.  It won't consider solutions that leave one or more of the lower-numbered
             // targets unmatched, even if those would be better in terms of total distance,
