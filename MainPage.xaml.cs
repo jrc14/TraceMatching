@@ -3,6 +3,8 @@
 using SkiaSharp;
 using SkiaSharp.Views.Maui;
 using SkiaSharp.Views.Maui.Controls;
+using System.Runtime.CompilerServices;
+using TraceMatching.Model;
 
 public partial class MainPage : ContentPage
 {
@@ -11,8 +13,9 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
 
-        this.lyCanvasView.Children.Clear();
+        this.BindingContext = this;
 
+        this.lyCanvasView.Children.Clear();
 
         SKCanvasView view = new SKCanvasView()
         {
@@ -25,72 +28,146 @@ public partial class MainPage : ContentPage
         view.InputTransparent = false;
         view.Touch += SkiaCanvasView_Touch;
         view.PaintSurface += OnCanvasViewPaintSurface;
+
+        this.PropertyChanged += MainPage_PropertyChanged;
+
+        this.SolutionDescription = "no solution found yet";
+        this.SolveStatus = "READY";
+    }
+
+    private void MainPage_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if(e.PropertyName== "TracesForTargets")
+        {
+            ClearSolutionDisplay();
+        }
+        else if (e.PropertyName== "SolveStatus")
+        {
+            if(this.SolveStatus=="READY")
+            {
+                this.lyCanvasView.Opacity = 1.0;
+                this.btnClear.Opacity = 1.0;
+                this.btnSolve.Opacity = 1.0;
+                this.btnStop.Opacity = 0.5;
+                this.traceButtons.Opacity = 1.0;
+                this.targetButtons.Opacity = 1.0;
+            }
+            else if(this.SolveStatus=="RUNNING")
+            {
+                this.lyCanvasView.Opacity = 0.5;
+                this.btnClear.Opacity = 0.5;
+                this.btnSolve.Opacity = 0.5;
+                this.btnStop.Opacity = 1.0;
+                this.traceButtons.Opacity = 0.5;
+                this.targetButtons.Opacity = 0.5;
+            }
+        }
+    }
+
+    private void OnButtonsChanged(System.Object sender, Microsoft.Maui.Controls.ElementEventArgs e)
+    {
+        ClearSolutionDisplay();
+    }
+
+    private void ClearSolutionDisplay()
+    {
+        if (Dispatcher.IsDispatchRequired)
+            Dispatcher.Dispatch(ClearSolutionDisplay);
+        else
+        {
+            this.SolutionDescription = "no solution found yet";
+            if (this.lyCanvasView.Children.Count > 0)
+                (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+        }
     }
 
     private void OnSolveClicked(object sender, EventArgs e)
     {
-        this.lblResult.Text = "no solution found yet";
-        this.lyCanvasView.Opacity = 0.5;
-        this.btnClear.Opacity = 0.5;
-        this.btnSolve.Opacity = 0.5;
-        this.traceButtons.Opacity = 0.5;
-        this.targetButtons.Opacity = 0.5;
-        Dispatcher.Dispatch(async () => {
-            await Task.Delay(100); // just to give the UI some time to update
-            var targets = new List<Tuple<int, int>>();
-            foreach (Button b in this.targetButtons.Children)
-            {
-                targets.Add(b.CommandParameter as Tuple<int, int>);
-            }
+        if(this.SolveStatus!="READY")
+        {
+            DisplayAlert("Not Ready", "Not ready - press the stop button to interrupt the solver", "OK");
+            return;
+        }
+        this.SolveStatus = "RUNNING";
+        this.SolutionDescription = "no solution found yet";
 
-            var traces = new List<Tuple<int, int>>();
-            foreach (Button b in this.traceButtons.Children)
-            {
-                traces.Add(b.CommandParameter as Tuple<int, int>);
-            }
+        var targets = new List<Tuple<int, int>>();
+        foreach (Button b in this.targetButtons.Children)
+        {
+            targets.Add(b.CommandParameter as Tuple<int, int>);
+        }
 
-            Model.TraceModel.Solve(targets, traces, DisplaySolution);
-            this.lyCanvasView.Opacity = 1.0;
-            this.btnClear.Opacity = 1.0;
-            this.btnSolve.Opacity = 1.0;
-            this.traceButtons.Opacity = 1.0;
-            this.targetButtons.Opacity = 1.0;
+        var traces = new List<Tuple<int, int>>();
+        foreach (Button b in this.traceButtons.Children)
+        {
+            traces.Add(b.CommandParameter as Tuple<int, int>);
+        }
+
+        Task.Run(() => {
+            TraceModel.HaltAfterNextStep = false;
+            TraceModel.Solve(targets, traces, DisplaySolution);
+            Dispatcher.Dispatch(() => {
+                this.SolveStatus = "READY";
+            });
         });
-
     }
 
-    List<Tuple<int, int>> traceMatches = null;
-    private void DisplaySolution(int[] solution, string msg)
+    private void OnStopClicked(object sender, EventArgs e)
     {
-        this.traceMatches= new List<Tuple<int, int>>();
-        for(int i=0; i<solution.Length; i++)
+        if (this.SolveStatus != "RUNNING")
         {
-            int j = solution[i]; // target #i has been identified with trace #j
-
-            if (j == -1)   // target #i was matched with trace -1, which is to say it was not matched
-                continue;
-
-            traceMatches.Add(new Tuple<int, int>(j, i)); // Item1 is a trace number, Item2 is a target number
+            DisplayAlert("Not Running", "Solver is not running; can't stop it", "OK");
+            return;
         }
-        (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
-        this.lblResult.Text = msg;
+
+        TraceModel.HaltAfterNextStep = true;
+    }
+
+    private void DisplaySolution(int[] solution, string msg, bool isFinal)
+    {
+        Dispatcher.Dispatch(() =>
+        {
+            List<Tuple<int, int>> newSolution = new List<Tuple<int, int>>();
+            for (int i = 0; i < solution.Length; i++)
+            {
+                int j = solution[i]; // target #i has been identified with trace #j
+
+                if (j == -1)   // target #i was matched with trace -1, which is to say it was not matched
+                    continue;
+
+                newSolution.Add(new Tuple<int, int>(j, i)); // Item1 is a trace number, Item2 is a target number
+            }
+            this.TracesForTargets = newSolution;
+            this.SolutionDescription = msg;
+        });
     }
 
     private void OnClearClicked(object sender, EventArgs e)
     {
-        this.lblResult.Text = "no solution found yet";
+        if (this.SolveStatus != "READY")
+        {
+            DisplayAlert("Not Ready", "Not ready - press the stop button to interrupt the solver", "OK");
+            return;
+        }
+
+        this.SolutionDescription = "no solution found yet";
         this.traceButtons.Children.Clear();
         this.targetButtons.Children.Clear();
-        if (this.traceMatches != null)
+        if (this.TracesForTargets != null)
         {
-            this.traceMatches.Clear();
-            this.traceMatches = null;
+            this.TracesForTargets.Clear();
+            this.TracesForTargets = null;
         }
-        (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
     }
 
     private void SkiaCanvasTap(int x, int y, bool isRightOrHold)
     {
+        if (this.SolveStatus != "READY")
+        {
+            DisplayAlert("Not Ready", "Not ready - press the stop button to interrupt the solver", "OK");
+            return;
+        }
+
         Button btn = new Button()
         {
             WidthRequest = 100,
@@ -102,35 +179,34 @@ public partial class MainPage : ContentPage
         };
         btn.Clicked += (object sender, EventArgs e) =>
         {
-            this.Dispatcher.Dispatch(() =>
+            if (this.SolveStatus != "READY")
             {
-                if (this.traceMatches != null)
-                {
-                    this.traceMatches.Clear();
-                    this.traceMatches = null;
-                }
-                ((sender as Button).Parent as VerticalStackLayout).Children.Remove((sender as Button));
-                (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
-            });
-        };
+                DisplayAlert("Not Ready", "Not ready - press the stop button to interrupt the solver", "OK");
+                return;
+            }
 
-        if (this.traceMatches != null)
-        {
-            this.traceMatches.Clear();
-            this.traceMatches = null;
-        }
+            ((sender as Button).Parent as VerticalStackLayout).Children.Remove((sender as Button));
+            if (this.TracesForTargets != null)
+            {
+                this.TracesForTargets.Clear();
+                this.TracesForTargets = null;
+            }
+        };
 
         if (isRightOrHold)
         {
             btn.BackgroundColor = Colors.OrangeRed;
             this.traceButtons.Add(btn);
-            (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
         }
         else
         {
             btn.BackgroundColor = Colors.Blue;
             this.targetButtons.Add(btn);
-            (this.lyCanvasView.Children[0] as SKCanvasView).InvalidateSurface();
+        }
+        if (this.TracesForTargets != null)
+        {
+            this.TracesForTargets.Clear();
+            this.TracesForTargets = null;
         }
     }
 
@@ -146,7 +222,6 @@ public partial class MainPage : ContentPage
     private void SkiaCanvasView_Touch(object sender, SKTouchEventArgs args)
     {
         try
-
         {
             args.Handled = true; // Let the OS know that we want to receive more touch events, and that we don't want to pass the event to any other element
 
@@ -256,9 +331,9 @@ public partial class MainPage : ContentPage
     {
         args.Surface.Canvas.Clear(SkiaSharp.SKColors.DarkGray);
 
-        if (this.traceMatches != null)
+        if (this.TracesForTargets != null)
         {
-            foreach (Tuple<int, int> t in this.traceMatches)
+            foreach (Tuple<int, int> t in this.TracesForTargets)
             {
                 int i = t.Item2; // target number
                 int j = t.Item1; // trace number
@@ -274,7 +349,6 @@ public partial class MainPage : ContentPage
                 SKPoint pt2 = new SKPoint(x2, y2);
 
                 args.Surface.Canvas.DrawLine(pt1, pt2, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.Orange, Style = SkiaSharp.SKPaintStyle.StrokeAndFill, StrokeWidth = 5 }); ;
-
             }
         }
 
@@ -287,9 +361,9 @@ public partial class MainPage : ContentPage
             args.Surface.Canvas.DrawCircle(x, y, 20, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.Blue });
             args.Surface.Canvas.DrawText(i.ToString(), x-5, y+5, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.White, TextSize = 20 });
 
-            if (traceMatches!=null)
+            if (TracesForTargets != null)
             {
-                if (!traceMatches.Any(x => x.Item2 == i)) // i is a target that we didn't match to any trace
+                if (!TracesForTargets.Any(x => x.Item2 == i)) // i is a target that we didn't match to any trace
                 {
                     args.Surface.Canvas.DrawCircle(x, y, 25, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.Red, Style = SkiaSharp.SKPaintStyle.Stroke, StrokeWidth = 5 });
                 }
@@ -305,13 +379,62 @@ public partial class MainPage : ContentPage
             args.Surface.Canvas.DrawCircle(x, y, 20, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.OrangeRed });
             args.Surface.Canvas.DrawText(j.ToString(), x-5, y+5, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.White, TextSize=20 });
 
-            if (traceMatches!=null)
+            if (this.TracesForTargets != null)
             {
-                if (!traceMatches.Any(x => x.Item1 == j)) // j is a trace that we didn't match to any target
+                if (!this.TracesForTargets.Any(x => x.Item1 == j)) // j is a trace that we didn't match to any target
                 {
                     args.Surface.Canvas.DrawCircle(x, y, 25, new SkiaSharp.SKPaint() { Color = SkiaSharp.SKColors.Red, Style = SkiaSharp.SKPaintStyle.Stroke, StrokeWidth = 5 });
                 }
             }
+        }
+    }
+
+    private string _SolveStatus = null;
+    public string SolveStatus
+    {
+        get
+        {
+            return _SolveStatus;
+        }
+        set
+        {
+            _SolveStatus = value;
+
+            this.OnPropertyChanged("SolveStatus");            
+        }
+    }
+
+    private string _SolutionDescription = null;
+    public string SolutionDescription
+    {
+        get
+        {
+            return _SolutionDescription;
+        }
+        set
+        {
+            _SolutionDescription = value;
+
+            this.OnPropertyChanged("SolutionDescription");
+        }
+    }
+
+    private List<Tuple<int, int>> _TracesForTargets = null; // in each tuple Item1 is a trace number, Item2 is a target number
+
+    /// <summary>
+    /// A list of tuples desribing a potential solution; Item1 is a trace number, Item2 is a target number.
+    /// </summary>
+    public List<Tuple<int, int>> TracesForTargets
+    {
+        get
+        {
+            return _TracesForTargets;
+        }
+        set
+        {
+            _TracesForTargets = value;
+
+            this.OnPropertyChanged("TracesForTargets");
         }
     }
 }

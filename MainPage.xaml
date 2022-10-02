@@ -17,9 +17,11 @@
                 <Label WidthRequest="100" HeightRequest="20" Text="click button to delete" FontSize="10" TextColor="Blue" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
                 <ScrollView WidthRequest="100" HeightRequest="260">
                     <VerticalStackLayout
-                                WidthRequest="100"
-                                HeightRequest="1000"
-                                x:Name="targetButtons">
+                        ChildAdded="OnButtonsChanged"
+                        ChildRemoved="OnButtonsChanged"
+                        WidthRequest="100"
+                        HeightRequest="1000"
+                        x:Name="targetButtons">
                     </VerticalStackLayout>
                 </ScrollView>
             </VerticalStackLayout>
@@ -35,9 +37,11 @@
                 <Label WidthRequest="100" HeightRequest="20" Text="click button to delete" FontSize="10" TextColor="OrangeRed" Background="WHITE" HorizontalOptions="Center" HorizontalTextAlignment="Center"></Label>
                 <ScrollView WidthRequest="100" HeightRequest="260">
                     <VerticalStackLayout
-                                WidthRequest="100"
-                                HeightRequest="1000"
-                                x:Name="traceButtons">
+                        ChildAdded="OnButtonsChanged"
+                        ChildRemoved="OnButtonsChanged"
+                        WidthRequest="100"
+                        HeightRequest="1000"
+                        x:Name="traceButtons">
                     </VerticalStackLayout>
                 </ScrollView>
             </VerticalStackLayout>
@@ -53,10 +57,14 @@
             Text="Click to clear"
             Clicked="OnClearClicked"
             HorizontalOptions="Center" />
-
+        <Button
+            x:Name="btnStop"
+            Text="Click to Stop"
+            Clicked="OnStopClicked"
+            HorizontalOptions="Center" />
         <Label
             x:Name="lblResult"
-            Text="no solution found yet"
+            Text="{Binding SolutionDescription}"
             HorizontalOptions="Center"/>
     </VerticalStackLayout>
 </ContentPage>

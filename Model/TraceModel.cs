@@ -53,6 +53,12 @@ namespace TraceMatching.Model
         internal static int[] BestSolutionFound;
 
         /// <summary>
+        /// If this is set to true, then the algorithm will stop at the next step, without trying to further complete
+        /// a solution.  Use this to interrupt it if you get bored waiting for it to finish.
+        /// </summary>
+        internal static bool HaltAfterNextStep = false;
+
+        /// <summary>
         /// Counts how many times the Solve(int toMatch, int totalDistance) function has been recurively called so far on the way
         /// to finding a solution.  The algorithm doesn't do anything with this information, it's just for information (though
         /// if you wanted to, you could use it to implement 'give up after X steps' logic).
@@ -64,10 +70,11 @@ namespace TraceMatching.Model
         /// </summary>
         /// <param name="targets">A list of X,Y pairs, being the coordinates of the targets</param>
         /// <param name="traces">A list of X,Y pairs, being the coordinates of the traces</param>
-        /// <param name="reporter">A callback method used to report the result (as an array of matches, and a string desciption).  The match array
-        /// has a number of elements equal to the number of targets; the ith element contains the trace number that is matched target #i
+        /// <param name="reporter">A callback method used to report the result (as an array of matches, and a string desciption, and a bool saying whether
+        /// the algorithm has finished yet -false means this is an interim result).  The match array has a number of elements equal to the number of
+        /// targets; the ith element contains the trace number that is matched target #i
         /// </param>
-        internal static void Solve(List<Tuple<int,int>> targets, List<Tuple<int,int>> traces, Action<int[], string> reporter)
+        internal static void Solve(List<Tuple<int,int>> targets, List<Tuple<int,int>> traces, Action<int[], string, bool> reporter)
         {
             /*
             NUM_TARGETS = 5;
@@ -141,7 +148,7 @@ namespace TraceMatching.Model
             // Start with 'best total trace-to-target distance' to 'none found yet'
             BestTotalDistance = int.MaxValue;
             // Call the recursive solver algorithm
-            Solve(0,0);
+            Solve(0,0,reporter);
 
             // The logging functionality opens a file; we close it here.
             if (Writer != null)
@@ -154,8 +161,11 @@ namespace TraceMatching.Model
             // into BestTotalDistance, and the number of steps taken into SolveSteps - we build a string describing it ...
             string resultString = SolutionToString(BestSolutionFound, BestTotalDistance,SolveSteps);
 
+            if (HaltAfterNextStep)
+                resultString += " [*** INTERRUPTED BEFORE COMPLETION ***]";
+
             // ... and then we invoke the reporter callback, to tell the ui about the solution
-            reporter(BestSolutionFound, resultString);
+            reporter(BestSolutionFound, resultString, true);
 
         }
         /// <summary>
@@ -164,9 +174,26 @@ namespace TraceMatching.Model
         /// </summary>
         /// <param name="toMatch">the target number that we will start solving from</param>
         /// <param name="totalDistance">the sum of trace-to-target distances for the targets already matched in this solution hypothesis</param>
-        private static void Solve(int toMatch, int totalDistance)
+        /// <param name="reporter">A callback method used to report the result</param>
+        private static void Solve(int toMatch, int totalDistance, Action<int[], string, bool> reporter)
         {
             SolveSteps++;
+
+            // If the solver has been told to stop its work, then just return without doing anything;
+            if (HaltAfterNextStep)
+                return;
+
+            // If the number of steps is divible by 100,000 then give an interim update on the solution
+            if(SolveSteps%100000==0)
+            {
+                // At any particular time, the solver will have its current best hypothesis in BestSolutionFound, and the
+                // corresponding total trace-to-target distance in BestTotalDistance, and the number of steps taken in SolveSteps
+                // - we build a string describing it ...
+                string resultString = SolutionToString(BestSolutionFound, BestTotalDistance, SolveSteps);
+                // ... and then we invoke the reporter callback, to tell the ui about the solution.  The 'false' means that
+                // it's an interim solution.
+                reporter(BestSolutionFound, resultString, false);
+            }
 
             if (totalDistance > BestTotalDistance)
             {
@@ -213,7 +240,7 @@ namespace TraceMatching.Model
             // because of the way it works (it works through the targets starting with the first and matching them one after the other;
             // that means that if it runs out of traces it will not experiment with un-matching one of the lower numbered targets)
             HypothesisedMatches[toMatch] = bestTrace;
-            Solve(toMatch + 1, bestTrace == -1 ? int.MaxValue : totalDistance + bestDistance); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
+            Solve(toMatch + 1, bestTrace == -1 ? int.MaxValue : totalDistance + bestDistance, reporter); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
 
             // Next we search for solutions that start by matching target #toMatch with all the other traces except the one with the lowest distance
             for (int j=0; j < NUM_TRACES; j++)
@@ -226,7 +253,7 @@ namespace TraceMatching.Model
 
                 // Now search for solutions that start by matching target #toMatch with trace #j
                 HypothesisedMatches[toMatch] = j; 
-                Solve(toMatch + 1, totalDistance + Distance[toMatch,j]); // having matched trace #j with target #toMatch, we now try to extend the current hypothesis
+                Solve(toMatch + 1, totalDistance + Distance[toMatch,j], reporter); // having matched trace #j with target #toMatch, we now try to extend the current hypothesis
             }
         }
 
@@ -319,7 +346,7 @@ namespace TraceMatching.Model
             // while matching all the lower numbered ones.  It won't consider solutions that leave one or more of the lower-numbered
             // targets unmatched, even if those would be better in terms of total distance.
             if (aTargetIsUnmatched)
-                resultString += " *** WARNING: SOLUTION IS NOT OPTIMAL ***";
+                resultString += " [*** WARNING: SOLUTION IS NOT OPTIMAL ***]";
 
             return resultString;
         }
