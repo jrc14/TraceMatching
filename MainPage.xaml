@@ -59,7 +59,7 @@
             HorizontalOptions="Center" />
         <Button
             x:Name="btnStop"
-            Text="Click to Stop"
+            Text="Click to stop"
             Clicked="OnStopClicked"
             HorizontalOptions="Center" />
         <Label
