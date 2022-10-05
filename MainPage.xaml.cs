@@ -212,6 +212,8 @@ public partial class MainPage : ContentPage
 
     private static int MOVE_THRESHOLD = 5;
 
+    private bool panDetected = false;
+
     private double priorX = -1;
     private double priorY = -1;
     private double initialX = -1;
@@ -230,6 +232,8 @@ public partial class MainPage : ContentPage
 
             if (args.ActionType == SKTouchAction.Pressed)
             {
+                panDetected = false;
+
                 this.initialX = x;
                 this.initialY = y;
                 this.priorX = x;
@@ -242,18 +246,14 @@ public partial class MainPage : ContentPage
                 this.Dispatcher.Dispatch(async () =>
                 {
                     double startedAtMilliseconds = this.initialMilliseconds;
-                    double startedAtX = x;
-                    double startedAtY = y;
+
                     await Task.Delay(500);
                     if (this.initialMilliseconds != -1)
                     {
-                        if (this.initialMilliseconds == startedAtMilliseconds)
+                        if (this.initialMilliseconds == startedAtMilliseconds && !panDetected)
                         {
-                            if (Math.Abs(initialX - startedAtX) < MOVE_THRESHOLD && Math.Abs(initialY - startedAtY) < MOVE_THRESHOLD)
-                            {
                                 // raise 'holding' here
-                                SkiaCanvasTap((int)x, (int)y, true);
-                            }
+                                SkiaCanvasTap((int)this.initialX, (int)this.initialY, true);
                         }
                     }
                 });
@@ -280,7 +280,10 @@ public partial class MainPage : ContentPage
                     // raise 'cancel move' here
                     if (totalMilliseconds > 500)
                     {
-                        // raise 'finished holding' here
+                        if (!this.panDetected)
+                        {
+                            // raise 'finished holding' here
+                        }
                     }
                     else
                     {
@@ -298,6 +301,8 @@ public partial class MainPage : ContentPage
                 }
 
                 // raised 'pointer released' here
+
+                panDetected = false;
             }
             else if (args.ActionType == SKTouchAction.Moved && args.InContact && this.initialMilliseconds != -1)
             {
@@ -313,6 +318,12 @@ public partial class MainPage : ContentPage
                 this.priorMilliseconds = milliseconds;
 
                 // raise 'panning' here
+
+                if (Math.Abs(totalX) >= MOVE_THRESHOLD || Math.Abs(totalY) >= MOVE_THRESHOLD
+                || Math.Abs(deltaX) >= MOVE_THRESHOLD || Math.Abs(deltaY) >= MOVE_THRESHOLD)
+                {
+                    this.panDetected = true;
+                }
             }
             else if (args.ActionType == SKTouchAction.Cancelled)
             {
