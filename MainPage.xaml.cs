@@ -271,7 +271,7 @@ public partial class MainPage : ContentPage
 
                 this.initialMilliseconds = -1;
 
-                if (Math.Abs(totalX) > MOVE_THRESHOLD || Math.Abs(totalY) > MOVE_THRESHOLD)
+                if (panDetected || Math.Abs(totalX) > MOVE_THRESHOLD || Math.Abs(totalY) > MOVE_THRESHOLD)
                 {
                     // raise 'pan completed' here
                 }
@@ -280,10 +280,7 @@ public partial class MainPage : ContentPage
                     // raise 'cancel move' here
                     if (totalMilliseconds > 500)
                     {
-                        if (!this.panDetected)
-                        {
-                            // raise 'finished holding' here
-                        }
+                        // raise 'finished holding' here
                     }
                     else
                     {
