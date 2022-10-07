@@ -252,8 +252,9 @@ public partial class MainPage : ContentPage
                     {
                         if (this.initialMilliseconds == startedAtMilliseconds && !panDetected)
                         {
-                                // raise 'holding' here
-                                SkiaCanvasTap((int)this.initialX, (int)this.initialY, true);
+                            // raise 'holding' here
+
+                            SkiaCanvasTap((int)this.initialX, (int)this.initialY, true);
                         }
                     }
                 });
@@ -310,16 +311,16 @@ public partial class MainPage : ContentPage
                 double totalX = x - this.initialX;
                 double totalY = y - this.initialY;
                 double totalMilliseconds = milliseconds - this.initialMilliseconds;
-                this.priorX = x;
-                this.priorY = y;
-                this.priorMilliseconds = milliseconds;
-
-                // raise 'panning' here
 
                 if (Math.Abs(totalX) >= MOVE_THRESHOLD || Math.Abs(totalY) >= MOVE_THRESHOLD
                 || Math.Abs(deltaX) >= MOVE_THRESHOLD || Math.Abs(deltaY) >= MOVE_THRESHOLD)
                 {
                     this.panDetected = true;
+                    this.priorX = x;
+                    this.priorY = y;
+                    this.priorMilliseconds = milliseconds;
+
+                    // raise 'panning' here
                 }
             }
             else if (args.ActionType == SKTouchAction.Cancelled)
