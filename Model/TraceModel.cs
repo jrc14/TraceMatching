@@ -19,16 +19,16 @@ namespace TraceMatching.Model
         /// <param name="targets">A list of X,Y pairs, being the coordinates of the targets</param>
         /// <param name="traces">A list of X,Y pairs, being the coordinates of the traces</param>
         /// <param name="reporter">A callback method used to report the result (as an array of matches, and a string desciption, and a bool saying whether
-        /// the algorithm has finished yet -false means this is an interim result).  The match array has a number of elements equal to the number of
-        /// targets; the ith element contains the trace number that is matched target #i
+        /// the algorithm has finished yet - false means this is an interim result).  The match array has a number of elements equal to the number of
+        /// targets; the ith element contains the trace number that is matched with target #i
         /// </param>
         internal static void Solve(List<Tuple<int, int>> targets, List<Tuple<int, int>> traces, Action<int[], string, bool> reporter)
         {
             // Construct the array of distances from targets to traces
             Problem p = new Problem(targets, traces);
 
-            // Start with 'best total trace-to-target distance' to 'none found yet' (int.Maxalue means that there is
-            // no solution so far - so any distance, no matter how large, is better than it.
+            // Start with 'best total trace-to-target distance' to 'none found yet' (int.MaxValue means that there is
+            // no solution so far - so any distance, no matter how large, is better than it).
             Hypothesis bestSolutionFound = new Hypothesis(p.numTargets, p.numTraces, int.MaxValue); 
 
             // This is where we actually kick off the recursive function call that will look for the best match.
@@ -44,10 +44,10 @@ namespace TraceMatching.Model
             // The solver puts the solution into bestSolutionFound - we build a string describing it ...
             string resultString = bestSolutionFound.ToString();
 
-            if (HaltAfterNextStep)
+            if (HaltAfterNextStep) // will be true if the user interrupted the solver 
                 resultString += " [*** INTERRUPTED BEFORE COMPLETION ***]";
 
-            // ... and then we invoke the reporter callback, to tell the ui about the solution
+            // ... and then we invoke the reporter callback, to tell the UI about the solution
             reporter(bestSolutionFound.matches, resultString, true);
         }
 
@@ -74,16 +74,16 @@ namespace TraceMatching.Model
         }
 
         /// <summary>Run the solver algorithm, which will deliver its result by copying the best solution (the one with the
-        /// lowest total distance) to the hypothesis bestSoFar
+        /// lowest total distance) to hypothesis bestSoFar
         /// </summary>
         /// <param name="problem">the problem definition</param>
         /// <param name="currentHypothesis">the hypothesis that we're going to start with at this step of the algorithm</param>
         /// <param name="bestSoFar">the best solution found so far (if it has totalDistance==int.MaxValue
-        /// that means no solution has been found yet</param>
+        /// that means no solution has been found yet)</param>
         /// <param name="reporter">A callback method used to report the result</param>
         internal static void Solve(Problem problem, Hypothesis currentHypothesis, Hypothesis bestSoFar, Action<int[], string, bool> reporter)
         {
-            currentHypothesis.stepCount++;
+            currentHypothesis.stepCount++; // the count of how many times 'Solve' has been invoked (used for information only, not the algorithm itself)
 
             // If the solver has been told to stop its work, then just return without doing anything;
             if (HaltAfterNextStep)
@@ -92,11 +92,9 @@ namespace TraceMatching.Model
             // If the number of steps is divible by 100,000 then give an interim update on the solution
             if (currentHypothesis.stepCount % 100000 == 0)
             {
-                // At any particular time, the solver will have its current best hypothesis in BestSolutionFound, and the
-                // corresponding total trace-to-target distance in BestTotalDistance, and the number of steps taken in SolveSteps
-                // - we build a string describing it ...
+                // At any particular time, the solver will have its current best hypothesis in the variable bestSoFar; we build a string describing it ...
                 string resultString = bestSoFar.ToString();
-                // ... and then we invoke the reporter callback, to tell the ui about the solution.  The 'false' means that
+                // ... and then we invoke the reporter callback, to tell the UI about the solution.  The 'false' means that
                 // it's an interim solution.
                 reporter(bestSoFar.matches, resultString, false);
             }
@@ -108,10 +106,12 @@ namespace TraceMatching.Model
                 return;
             }
 
+            int nextTargetToMatch=currentHypothesis.numberMatched; // copy the number matched out of the current hypothesis, so we can restore it later
+            int currentHypothesisDistance = currentHypothesis.totalDistance; // copy the current total distance, for the same reason
+
             // If we've found a match for all the targets, this is a solution that we should keep, until/unless we find a better one;
             // we copy it into bestSoFar.
-            int nextToMatch=currentHypothesis.numberMatched;
-            if (nextToMatch == problem.numTargets)
+            if (nextTargetToMatch == problem.numTargets)
             {
                 bestSoFar.CopyFrom(currentHypothesis); // any solutions worse that this one will be abandoned part way through
 
@@ -131,29 +131,28 @@ namespace TraceMatching.Model
                 if (currentHypothesis.TraceAlreadyHypothesised(j)) // ignore traces that have already been matched in the current hypothesis
                     continue;
 
-                if (problem.distance[nextToMatch, j] < bestDistance)
+                if (problem.distance[nextTargetToMatch, j] < bestDistance)
                 {
-                    bestDistance = problem.distance[nextToMatch, j];
+                    bestDistance = problem.distance[nextTargetToMatch, j];
                     bestTrace = j;
                 }
             }
-            // We search for solutions that start by matching target #toMatch with trace #bestTrace (the one having the lowest distance)
+            // We search for solutions that start by matching target #nextTargetToMatch with trace #bestTrace (the one having the lowest distance)
             // Note that there is an edge-case where there is no possible trace, because they've all been hypothesised already, yet we have some
             // targets left over (i.e. the algorithm was supplied with too few traces).
             // In that case we'll report int.MaxValue as the best distance, as a hint that the algorithm can't give an optimal answer,
             // because of the way it works (it works through the targets starting with the first and matching them one after the other;
             // that means that if it runs out of traces it will not experiment with un-matching one of the lower numbered targets)
-            currentHypothesis.matches[nextToMatch] = bestTrace;
-            currentHypothesis.numberMatched = nextToMatch + 1;
-            int currentHypothesisDistance = currentHypothesis.totalDistance;
+            currentHypothesis.matches[nextTargetToMatch] = bestTrace;
+            currentHypothesis.numberMatched = nextTargetToMatch + 1;
             currentHypothesis.totalDistance = (bestTrace == -1 ? int.MaxValue : currentHypothesisDistance + bestDistance);
             Solve(problem, currentHypothesis, bestSoFar, reporter); // having matched trace #bestTrace with target #toMatch, we now try to extend the current hypothesis
 
             // Now put the current hypothesis back to how it was before the recursive call to the solver:
-            currentHypothesis.numberMatched = nextToMatch;
+            currentHypothesis.numberMatched = nextTargetToMatch;
             currentHypothesis.totalDistance = currentHypothesisDistance;
 
-            // Next we search for solutions that start by matching target #toMatch with all the other traces except the one with the lowest distance
+            // Next we search for solutions that start by matching target #nextTargetToMatch with all the other traces except the one with the lowest distance
             for (int j = 0; j < problem.numTraces; j++)
             {
                 if (currentHypothesis.TraceAlreadyHypothesised(j)) // ignore traces that have already been matched in the current hypothesis
@@ -162,15 +161,14 @@ namespace TraceMatching.Model
                 if (j == bestTrace) // because we generated solutions for the best trace already, we skip this one now
                     continue;
 
-                // Now search for solutions that start by matching target #toMatch with trace #j
-                currentHypothesis.matches[nextToMatch] = j;
-                currentHypothesis.numberMatched = nextToMatch + 1;
-                currentHypothesisDistance = currentHypothesis.totalDistance;
-                currentHypothesis.totalDistance = currentHypothesisDistance + problem.distance[nextToMatch,j];
-                Solve(problem, currentHypothesis, bestSoFar, reporter); // having matched trace #j with target #toMatch, we now try to extend the current hypothesis
+                // Now search for solutions that start by matching target #nextTargetToMatch with trace #j
+                currentHypothesis.matches[nextTargetToMatch] = j;
+                currentHypothesis.numberMatched = nextTargetToMatch + 1;
+                currentHypothesis.totalDistance = currentHypothesisDistance + problem.distance[nextTargetToMatch,j];
+                Solve(problem, currentHypothesis, bestSoFar, reporter); // having matched trace #j with target #nextTargetToMatch, we now try to extend the current hypothesis
 
                 // Now put the current hypothesis back to how it was before the recursive call to the solver:
-                currentHypothesis.numberMatched = nextToMatch;
+                currentHypothesis.numberMatched = nextTargetToMatch;
                 currentHypothesis.totalDistance = currentHypothesisDistance;
             }
         }
@@ -215,7 +213,7 @@ namespace TraceMatching.Model
         internal int numTraces;
 
         /// <summary>
-        /// A 2 dimensional array, distance[i,j] will be filled in with the distance from target #1 to trace #j
+        /// A 2 dimensional array: distance[i,j] will be filled in with the distance from target #1 to trace #j
         /// </summary>
         internal int[,] distance;
     }
@@ -238,7 +236,7 @@ namespace TraceMatching.Model
         /// <param name="_numTargets">number of targets the hypothesis has to match eventually</param>
         /// <param name="_numTraces">number of traces the hypothesis has to match eventually</param>
         /// <param name="_totalDistance">Use 0 to mean 'a partial solution to be expanded on'; use int.MaxValue
-        /// to mean 'an invalid solution that we're trying to improve on</param>
+        /// to mean 'an invalid solution that we're trying to improve on'</param>
         internal Hypothesis(int _numTargets, int _numTraces, int _totalDistance)
         {
             this.matches = new int[_numTargets];
@@ -266,7 +264,6 @@ namespace TraceMatching.Model
 
             this.numTargets = that.numTargets;
             this.numTraces = that.numTraces;
-
             this.numberMatched = that.numberMatched;
             this.totalDistance = that.totalDistance;
             this.stepCount = that.stepCount;
@@ -335,7 +332,7 @@ namespace TraceMatching.Model
         }
 
         /// <summary>
-        /// The ith element of this contains the trace number that is hypothesised to match target #i.  Note that it may
+        /// The ith element of this array contains the trace number that is hypothesised to match target #i.  Note that it may
         /// be a partial solution - the member variable 'numberMatched' keeps track of which elements of the array are actually
         /// correctly filled in (e.g. if numberMatched==4, then elements [0-3] contain valid trace-to-target mappings, and the
         /// other array elements contain values that aren't meaningful).
@@ -353,14 +350,13 @@ namespace TraceMatching.Model
         internal int numTraces;
 
         /// <summary>
-        /// The current hypothesis; the ith element of this contains the trace number that is hypothesised to match target #i.  Note that it may
-        /// be a partial solution - the parameter 'toMatch' of the Solve method keeps track of which elements of the array are actually correctly
-        /// filled in (e.g. if toMatch==4, then elements [0-3] contain valid trace-to-target mappings, and the other array elements contain
-        /// values that aren't meaningful).
+        /// Keeps track of which elements of the 'matches' array are actually correctly filled in (e.g. if numberMatched==4, then elements [0-3]
+        /// contain valid trace-to-target mappings, and the other array elements contain values that aren't meaningful).
         /// </summary>
         internal int numberMatched;
 
-        /// <summary>The aggregate distance (total trace-to-target distance) in this hypothesis.  Note that it behaves differently 
+        /// <summary>
+        /// The aggregate distance (total trace-to-target distance) in this hypothesis.  Note that it behaves differently 
         /// for the current solution and the best solution so far.  For the current solution, it will be initialised to 0,
         /// meaning 'I've matched no targets to traces' so the total distance is zero.  For the best solution so far, it will
         /// be initialised to int.MaxValue, meaning 'this isn't a valid solution; any valid solution will be better than this one'.
@@ -369,7 +365,7 @@ namespace TraceMatching.Model
 
         /// <summary>
         /// Counts how many times the Solve() function has been recurively called so far on the way
-        /// to finding a solution.  The algorithm doesn't do anything with this information; it just uses ut for
+        /// to finding a solution.  The algorithm doesn't do anything with this information; it just uses it for
         /// logging, and for deciding when to report intermediate results.
         /// If you wanted to, you could use it to implement 'give up after X steps' logic.
         /// </summary>
